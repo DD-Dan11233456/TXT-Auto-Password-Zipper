@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Document Zipper</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/zip.js/2.7.53/zip.min.js"></script>
     <style>
         :root {
             --bg-color: #f4f7f6;
@@ -47,7 +47,6 @@
             text-align: center;
         }
 
-        /* Auto-expanding Textarea Wrapper */
         .text-container {
             position: relative;
             width: 100%;
@@ -61,8 +60,8 @@
             line-height: 1.6;
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            resize: none; /* Disables manual resizing */
-            overflow-y: hidden; /* Hides scrollbar as it grows */
+            resize: none;
+            overflow-y: hidden;
             box-sizing: border-box;
             outline: none;
             transition: border-color 0.2s;
@@ -73,7 +72,6 @@
             box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
         }
 
-        /* Control Panel at the Bottom */
         .controls {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -119,15 +117,16 @@
             border-radius: 6px;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
-            height: 41px; /* Matches input height alignment */
+            height: 41px;
         }
 
         button:hover {
             background-color: var(--primary-hover);
         }
 
-        button:active {
-            transform: scale(0.98);
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -147,7 +146,7 @@
             </div>
             
             <div class="input-group">
-                <label for="password">Password (Optional)</label>
+                <label for="password">Password</label>
                 <input type="password" id="password" placeholder="Enter encryption password">
             </div>
 
@@ -163,14 +162,12 @@
 
         // 1. Auto-expand Textarea Logic
         messageBox.addEventListener('input', function () {
-            // Reset height to calculate correctly
             this.style.height = 'auto';
-            // Set the height to match the scroll height (content size)
             this.style.height = this.scrollHeight + 'px';
         });
 
-        // 2. Zip and Download Logic
-        zipBtn.addEventListener('click', function () {
+        // 2. Encrypted Zip and Download Logic using zip.js
+        zipBtn.addEventListener('click', async function () {
             const textContent = messageBox.value.trim();
             let fileName = fileNameInput.value.trim() || 'document';
             const password = passwordInput.value;
@@ -180,43 +177,50 @@
                 return;
             }
 
-            // Ensure filename ends with .zip correctly later, clean user input
+            if (!password) {
+                alert('Please enter a password to encrypt your file.');
+                return;
+            }
+
+            // Standardize zip filename extension
             if (fileName.toLowerCase().endsWith('.zip')) {
                 fileName = fileName.slice(0, -4);
             }
 
-            const zip = new JSZip();
+            zipBtn.disabled = true;
+            zipBtn.innerText = "Encrypting...";
 
-            // Note: Standard JSZip doesn't support native ZipCrypto password encryption out-of-the-box 
-            // without heavy extra libraries. To keep this single-file and functional, we use JSZip's 
-            // comment/metadata encryption capability or store it securely. 
-            // For true AES-256 zip encryption in pure JS seamlessly, we pass it via standard JSZip configurations.
-            
-            if (password) {
-                // Creating the text file inside the zip
-                // Note: Standard web browsers will download this zip. If you provided a password, 
-                // we store the data utilizing JSZip options. 
-                zip.file("document.txt", textContent, {
-                    comment: "Encrypted with Password"
+            try {
+                // Initialize the zip file in a virtual stream data container (Blob)
+                const blobWriter = new zip.BlobWriter("application/zip");
+                const zipWriter = new zip.ZipWriter(blobWriter);
+
+                // Add document.txt into the zip file container
+                // 'password' assigns encryption; zip.js natively uses Standard ZipCrypto / AES 
+                await zipWriter.add("document.txt", new zip.TextReader(textContent), {
+                    password: password,
+                    zipCrypto: true // Makes it compatible across basic native OS extractors
                 });
-            } else {
-                zip.file("document.txt", textContent);
+
+                // Close and compile the zip file
+                await zipWriter.close();
+                const finalZipBlob = await blobWriter.getData();
+
+                // Handle downloading the compiled blob automatically
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(finalZipBlob);
+                link.download = `${fileName}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+            } catch (error) {
+                alert("An error occurred during encryption: " + error.message);
+                console.error(error);
+            } finally {
+                zipBtn.disabled = false;
+                zipBtn.innerText = "Zip & Encrypt";
             }
-
-            // Generate the zip file and trigger download
-            zip.generateAsync({ type: "blob" })
-                .then(function (content) {
-                    // Create a temporary link to download the blob
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(content);
-                    link.download = `${fileName}.zip`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                })
-                .catch(function (err) {
-                    alert("Error generating zip: " + err);
-                });
         });
     </script>
 </body>
