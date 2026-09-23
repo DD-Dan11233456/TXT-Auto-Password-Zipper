@@ -117,7 +117,7 @@
             border-radius: 6px;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
-            height: 41px;
+            min-height: 41px;
         }
 
         button:hover {
@@ -128,13 +128,19 @@
             background-color: #cccccc;
             cursor: not-allowed;
         }
+
+        #downloadFallback {
+            display: none;
+            color: var(--primary-hover);
+            font-weight: 600;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-
     <div class="container">
         <h2>Secure Document Notepad</h2>
-        
+
         <div class="text-container">
             <textarea id="messageBox" placeholder="Start typing your document here... It will automatically expand as you write."></textarea>
         </div>
@@ -144,7 +150,7 @@
                 <label for="fileName">Zip File Name</label>
                 <input type="text" id="fileName" placeholder="my-secure-file" value="secret_document">
             </div>
-            
+
             <div class="input-group">
                 <label for="password">Password</label>
                 <input type="password" id="password" placeholder="Enter encryption password">
@@ -152,6 +158,8 @@
 
             <button id="zipBtn" type="button">Zip &amp; Encrypt</button>
         </div>
+
+        <a id="downloadFallback" href="#" download>Download the ZIP file</a>
     </div>
 
     <script>
@@ -159,19 +167,56 @@
         const fileNameInput = document.getElementById('fileName');
         const passwordInput = document.getElementById('password');
         const zipBtn = document.getElementById('zipBtn');
+        const downloadFallback = document.getElementById('downloadFallback');
 
-        // Disable workers so the standalone CDN build works on local files and
-        // hosts that do not provide a separate zip.js worker URL.
-        zip.configure({ useWebWorkers: false });
+        // Workers are disabled so this also works when index.html is opened
+        // directly from a local file, on Linux, or on Windows.
+        if (!window.zip) {
+            zipBtn.disabled = true;
+            alert('The ZIP library could not be loaded. Check your internet connection and reload the page.');
+        } else {
+            zip.configure({ useWebWorkers: false });
+        }
 
         messageBox.addEventListener('input', function () {
             this.style.height = 'auto';
             this.style.height = this.scrollHeight + 'px';
         });
 
+        function downloadBlob(blob, fileName) {
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = fileName;
+            link.rel = 'noopener';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+
+            // msSaveOrOpenBlob is required by older Windows browsers.
+            if (typeof navigator.msSaveOrOpenBlob === 'function') {
+                navigator.msSaveOrOpenBlob(blob, fileName);
+            } else {
+                link.click();
+            }
+
+            link.remove();
+
+            // Keep a visible fallback for browsers that block programmatic
+            // downloads (and for browsers with download restrictions).
+            downloadFallback.href = objectUrl;
+            downloadFallback.download = fileName;
+            downloadFallback.style.display = 'block';
+            downloadFallback.textContent = `If the download did not start, click here to download ${fileName}`;
+
+            // Do not revoke immediately: the fallback link still needs the URL.
+            setTimeout(() => {
+                URL.revokeObjectURL(objectUrl);
+                downloadFallback.removeAttribute('href');
+                downloadFallback.style.display = 'none';
+            }, 10 * 60 * 1000);
+        }
+
         zipBtn.addEventListener('click', async function () {
-            // Do not trim the document itself: leading/trailing whitespace may
-            // be meaningful to the user. Only use trim() for validation.
             const textContent = messageBox.value;
             let fileName = fileNameInput.value.trim() || 'document';
             const password = passwordInput.value;
@@ -190,12 +235,12 @@
                 fileName = fileName.slice(0, -4);
             }
 
-            // Prevent path traversal characters from becoming part of the
-            // downloaded filename.
+            // Prevent path traversal and invalid Windows filename characters.
             fileName = fileName.replace(/[\\/:*?"<>|]/g, '_') || 'document';
 
             zipBtn.disabled = true;
             zipBtn.innerText = 'Encrypting...';
+            downloadFallback.style.display = 'none';
 
             try {
                 const blobWriter = new zip.BlobWriter('application/zip');
@@ -204,27 +249,14 @@
                 await zipWriter.add(
                     'document.txt',
                     new zip.TextReader(textContent),
-                    {
-                        password,
-                        zipCrypto: true
-                    }
+                    { password, zipCrypto: true }
                 );
 
                 await zipWriter.close();
                 const finalZipBlob = await blobWriter.getData();
-                const objectUrl = URL.createObjectURL(finalZipBlob);
-                const link = document.createElement('a');
-                link.href = objectUrl;
-                link.download = `${fileName}.zip`;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-
-                // Release the temporary object URL after the browser has
-                // started the download.
-                setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+                downloadBlob(finalZipBlob, `${fileName}.zip`);
             } catch (error) {
-                alert(`An error occurred during encryption: ${error.message}`);
+                alert(`An error occurred during encryption: ${error.message || error}`);
                 console.error(error);
             } finally {
                 zipBtn.disabled = false;
