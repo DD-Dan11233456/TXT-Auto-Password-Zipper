@@ -4,263 +4,156 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Document Zipper</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/zip.js/2.7.53/zip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/zip.js/2.7.53/zip.min.js" defer></script>
     <style>
-        :root {
-            --bg-color: #f4f7f6;
-            --card-bg: #ffffff;
-            --text-color: #333333;
-            --primary-color: #4a90e2;
-            --primary-hover: #357abd;
-            --border-color: #e0e0e0;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 40px 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 800px;
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        h2 {
-            margin: 0 0 10px 0;
-            color: #222;
-            font-weight: 600;
-            text-align: center;
-        }
-
-        .text-container {
-            position: relative;
-            width: 100%;
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 150px;
-            padding: 15px;
-            font-size: 16px;
-            line-height: 1.6;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            resize: none;
-            overflow-y: hidden;
-            box-sizing: border-box;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        textarea:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
-        }
-
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            align-items: flex-end;
-            background: #fafafa;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .input-group label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #666;
-        }
-
-        .input-group input {
-            padding: 10px 12px;
-            font-size: 14px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            outline: none;
-        }
-
-        .input-group input:focus {
-            border-color: var(--primary-color);
-        }
-
-        button {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
-            min-height: 41px;
-        }
-
-        button:hover {
-            background-color: var(--primary-hover);
-        }
-
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-
-        #downloadFallback {
-            display: none;
-            color: var(--primary-hover);
-            font-weight: 600;
-            text-align: center;
-        }
+        :root { --bg-color:#f4f7f6; --card-bg:#fff; --text-color:#333; --primary-color:#4a90e2; --primary-hover:#357abd; --border-color:#e0e0e0; }
+        body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:var(--bg-color); color:var(--text-color); margin:0; padding:40px 20px; display:flex; justify-content:center; align-items:center; min-height:100vh; box-sizing:border-box; }
+        .container { width:100%; max-width:800px; background:var(--card-bg); padding:30px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.08); display:flex; flex-direction:column; gap:20px; }
+        h2 { margin:0 0 10px; color:#222; font-weight:600; text-align:center; }
+        .text-container { position:relative; width:100%; }
+        textarea { width:100%; min-height:150px; padding:15px; font-size:16px; line-height:1.6; border:1px solid var(--border-color); border-radius:8px; resize:none; overflow-y:hidden; box-sizing:border-box; outline:none; transition:border-color .2s; }
+        textarea:focus { border-color:var(--primary-color); box-shadow:0 0 0 3px rgba(74,144,226,.1); }
+        .controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; align-items:end; background:#fafafa; padding:20px; border-radius:8px; border:1px solid var(--border-color); }
+        .input-group { display:flex; flex-direction:column; gap:8px; }
+        .input-group label { font-size:14px; font-weight:600; color:#666; }
+        .input-group input { padding:10px 12px; font-size:14px; border:1px solid var(--border-color); border-radius:6px; outline:none; }
+        .input-group input:focus { border-color:var(--primary-color); }
+        button { background:var(--primary-color); color:#fff; border:0; padding:12px 20px; font-size:15px; font-weight:600; border-radius:6px; cursor:pointer; min-height:41px; }
+        button:hover { background:var(--primary-hover); }
+        button:disabled { background:#ccc; cursor:not-allowed; }
+        #downloadFallback { display:none; color:var(--primary-hover); font-weight:600; text-align:center; }
+        #status { min-height:1.2em; text-align:center; color:#666; font-size:14px; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <main class="container">
         <h2>Secure Document Notepad</h2>
-
         <div class="text-container">
             <textarea id="messageBox" placeholder="Start typing your document here... It will automatically expand as you write."></textarea>
         </div>
-
         <div class="controls">
             <div class="input-group">
                 <label for="fileName">Zip File Name</label>
                 <input type="text" id="fileName" placeholder="my-secure-file" value="secret_document">
             </div>
-
             <div class="input-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Enter encryption password">
+                <input type="password" id="password" placeholder="Enter encryption password" autocomplete="new-password">
             </div>
-
             <button id="zipBtn" type="button">Zip &amp; Encrypt</button>
         </div>
-
+        <div id="status" role="status" aria-live="polite"></div>
         <a id="downloadFallback" href="#" download>Download the ZIP file</a>
-    </div>
+    </main>
 
     <script>
+        'use strict';
+
         const messageBox = document.getElementById('messageBox');
         const fileNameInput = document.getElementById('fileName');
         const passwordInput = document.getElementById('password');
         const zipBtn = document.getElementById('zipBtn');
         const downloadFallback = document.getElementById('downloadFallback');
+        const status = document.getElementById('status');
+        let downloadUrl = null;
 
-        // Workers are disabled so this also works when index.html is opened
-        // directly from a local file, on Linux, or on Windows.
-        if (!window.zip) {
-            zipBtn.disabled = true;
-            alert('The ZIP library could not be loaded. Check your internet connection and reload the page.');
-        } else {
-            zip.configure({ useWebWorkers: false });
+        function setStatus(message, isError = false) {
+            status.textContent = message;
+            status.style.color = isError ? '#b00020' : '#666';
         }
 
-        messageBox.addEventListener('input', function () {
-            this.style.height = 'auto';
-            this.style.height = this.scrollHeight + 'px';
-        });
+        function resizeEditor() {
+            messageBox.style.height = 'auto';
+            messageBox.style.height = `${messageBox.scrollHeight}px`;
+        }
 
-        function downloadBlob(blob, fileName) {
-            const objectUrl = URL.createObjectURL(blob);
+        messageBox.addEventListener('input', resizeEditor);
+        resizeEditor();
+
+        function showDownload(blob, fileName) {
+            // Firefox may block a synthetic download after an awaited operation.
+            // Keep a normal, user-clickable link visible as a reliable fallback.
+            if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+            downloadUrl = URL.createObjectURL(blob);
+            downloadFallback.href = downloadUrl;
+            downloadFallback.download = fileName;
+            downloadFallback.textContent = `Download ${fileName}`;
+            downloadFallback.style.display = 'block';
+            setStatus('ZIP created. If it did not download automatically, click the link above.');
+
+            // This click is attempted for browsers that allow downloads after async work.
             const link = document.createElement('a');
-            link.href = objectUrl;
+            link.href = downloadUrl;
             link.download = fileName;
             link.rel = 'noopener';
             link.style.display = 'none';
             document.body.appendChild(link);
-
-            // msSaveOrOpenBlob is required by older Windows browsers.
-            if (typeof navigator.msSaveOrOpenBlob === 'function') {
-                navigator.msSaveOrOpenBlob(blob, fileName);
-            } else {
-                link.click();
-            }
-
+            link.click();
             link.remove();
-
-            // Keep a visible fallback for browsers that block programmatic
-            // downloads (and for browsers with download restrictions).
-            downloadFallback.href = objectUrl;
-            downloadFallback.download = fileName;
-            downloadFallback.style.display = 'block';
-            downloadFallback.textContent = `If the download did not start, click here to download ${fileName}`;
-
-            // Do not revoke immediately: the fallback link still needs the URL.
-            setTimeout(() => {
-                URL.revokeObjectURL(objectUrl);
-                downloadFallback.removeAttribute('href');
-                downloadFallback.style.display = 'none';
-            }, 10 * 60 * 1000);
         }
 
-        zipBtn.addEventListener('click', async function () {
+        function cleanFileName(value) {
+            let name = value.trim() || 'document';
+            if (/\.zip$/i.test(name)) name = name.slice(0, -4);
+            // Remove separators, control characters, and Windows-invalid characters.
+            return name.replace(/[\\/:*?"<>|\x00-\x1F]/g, '_').trim() || 'document';
+        }
+
+        zipBtn.addEventListener('click', async () => {
             const textContent = messageBox.value;
-            let fileName = fileNameInput.value.trim() || 'document';
             const password = passwordInput.value;
+            const fileName = `${cleanFileName(fileNameInput.value)}.zip`;
 
             if (!textContent.trim()) {
-                alert('Please write some text in the box before zipping.');
+                setStatus('Please write some text in the box before zipping.', true);
+                messageBox.focus();
                 return;
             }
-
             if (!password) {
-                alert('Please enter a password to encrypt your file.');
+                setStatus('Please enter a password to encrypt your file.', true);
+                passwordInput.focus();
                 return;
             }
-
-            if (fileName.toLowerCase().endsWith('.zip')) {
-                fileName = fileName.slice(0, -4);
+            if (!window.zip || typeof window.zip.ZipWriter !== 'function') {
+                setStatus('The ZIP library is not available. Check your connection and reload the page.', true);
+                return;
             }
-
-            // Prevent path traversal and invalid Windows filename characters.
-            fileName = fileName.replace(/[\\/:*?"<>|]/g, '_') || 'document';
 
             zipBtn.disabled = true;
-            zipBtn.innerText = 'Encrypting...';
+            zipBtn.textContent = 'Encrypting...';
             downloadFallback.style.display = 'none';
+            setStatus('Creating encrypted ZIP...');
 
+            let zipWriter;
             try {
+                // Disable workers: this works from Firefox file:// pages as well as HTTPS.
+                zip.configure({ useWebWorkers: false });
                 const blobWriter = new zip.BlobWriter('application/zip');
-                const zipWriter = new zip.ZipWriter(blobWriter);
-
-                await zipWriter.add(
-                    'document.txt',
-                    new zip.TextReader(textContent),
-                    { password, zipCrypto: true }
-                );
-
+                zipWriter = new zip.ZipWriter(blobWriter);
+                await zipWriter.add('document.txt', new zip.TextReader(textContent), {
+                    password: password,
+                    zipCrypto: true
+                });
                 await zipWriter.close();
-                const finalZipBlob = await blobWriter.getData();
-                downloadBlob(finalZipBlob, `${fileName}.zip`);
+                zipWriter = null;
+                showDownload(await blobWriter.getData(), fileName);
             } catch (error) {
-                alert(`An error occurred during encryption: ${error.message || error}`);
+                if (zipWriter) {
+                    try { await zipWriter.close(); } catch (_) { /* already failed */ }
+                }
                 console.error(error);
+                setStatus(`Encryption failed: ${error.message || error}`, true);
             } finally {
                 zipBtn.disabled = false;
-                zipBtn.innerText = 'Zip & Encrypt';
+                zipBtn.textContent = 'Zip & Encrypt';
+            }
+        });
+
+        // The external script is deferred, so check after the page and library load.
+        window.addEventListener('load', () => {
+            if (!window.zip) {
+                zipBtn.disabled = true;
+                setStatus('The ZIP library could not be loaded. Check your internet connection and reload the page.', true);
             }
         });
     </script>
