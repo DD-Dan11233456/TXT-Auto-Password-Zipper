@@ -150,7 +150,7 @@
                 <input type="password" id="password" placeholder="Enter encryption password">
             </div>
 
-            <button id="zipBtn">Zip & Encrypt</button>
+            <button id="zipBtn" type="button">Zip &amp; Encrypt</button>
         </div>
     </div>
 
@@ -160,19 +160,23 @@
         const passwordInput = document.getElementById('password');
         const zipBtn = document.getElementById('zipBtn');
 
-        // 1. Auto-expand Textarea Logic
+        // Disable workers so the standalone CDN build works on local files and
+        // hosts that do not provide a separate zip.js worker URL.
+        zip.configure({ useWebWorkers: false });
+
         messageBox.addEventListener('input', function () {
             this.style.height = 'auto';
             this.style.height = this.scrollHeight + 'px';
         });
 
-        // 2. Encrypted Zip and Download Logic using zip.js
         zipBtn.addEventListener('click', async function () {
-            const textContent = messageBox.value.trim();
+            // Do not trim the document itself: leading/trailing whitespace may
+            // be meaningful to the user. Only use trim() for validation.
+            const textContent = messageBox.value;
             let fileName = fileNameInput.value.trim() || 'document';
             const password = passwordInput.value;
 
-            if (!textContent) {
+            if (!textContent.trim()) {
                 alert('Please write some text in the box before zipping.');
                 return;
             }
@@ -182,44 +186,49 @@
                 return;
             }
 
-            // Standardize zip filename extension
             if (fileName.toLowerCase().endsWith('.zip')) {
                 fileName = fileName.slice(0, -4);
             }
 
+            // Prevent path traversal characters from becoming part of the
+            // downloaded filename.
+            fileName = fileName.replace(/[\\/:*?"<>|]/g, '_') || 'document';
+
             zipBtn.disabled = true;
-            zipBtn.innerText = "Encrypting...";
+            zipBtn.innerText = 'Encrypting...';
 
             try {
-                // Initialize the zip file in a virtual stream data container (Blob)
-                const blobWriter = new zip.BlobWriter("application/zip");
+                const blobWriter = new zip.BlobWriter('application/zip');
                 const zipWriter = new zip.ZipWriter(blobWriter);
 
-                // Add document.txt into the zip file container
-                // 'password' assigns encryption; zip.js natively uses Standard ZipCrypto / AES 
-                await zipWriter.add("document.txt", new zip.TextReader(textContent), {
-                    password: password,
-                    zipCrypto: true // Makes it compatible across basic native OS extractors
-                });
+                await zipWriter.add(
+                    'document.txt',
+                    new zip.TextReader(textContent),
+                    {
+                        password,
+                        zipCrypto: true
+                    }
+                );
 
-                // Close and compile the zip file
                 await zipWriter.close();
                 const finalZipBlob = await blobWriter.getData();
-
-                // Handle downloading the compiled blob automatically
+                const objectUrl = URL.createObjectURL(finalZipBlob);
                 const link = document.createElement('a');
-                link.href = URL.createObjectURL(finalZipBlob);
+                link.href = objectUrl;
                 link.download = `${fileName}.zip`;
                 document.body.appendChild(link);
                 link.click();
-                document.body.removeChild(link);
+                link.remove();
 
+                // Release the temporary object URL after the browser has
+                // started the download.
+                setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
             } catch (error) {
-                alert("An error occurred during encryption: " + error.message);
+                alert(`An error occurred during encryption: ${error.message}`);
                 console.error(error);
             } finally {
                 zipBtn.disabled = false;
-                zipBtn.innerText = "Zip & Encrypt";
+                zipBtn.innerText = 'Zip & Encrypt';
             }
         });
     </script>
